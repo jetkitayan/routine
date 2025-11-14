@@ -66,6 +66,7 @@
     const API_BASE = "https://memo-save-api.jetkitayan.workers.dev"; // 自分の API エンドポイント
 
     let editingId = null;
+    let lastRandomRoutine = null;
 
     // ★ 注意：Basic 認証の ID/PASS を HTML に直書きすると公開されたときに丸見えなので、
     //  あくまで自分用・プライベート前提。気になるなら別の方法を考える。
@@ -121,19 +122,40 @@
       const res = await fetchWithBasic("/api/routine/random?limit=1");
       const data = await res.json();
       const box = document.getElementById("randomResult");
-
+    
       if (!data.ok || !data.routines || data.routines.length === 0) {
         box.textContent = "データがありません。";
+        lastRandomRoutine = null;
         return;
       }
-
+    
       const r = data.routines[0];
+      lastRandomRoutine = r;
+    
       box.innerHTML = `
         <div><strong>ID:</strong> ${r.id}</div>
         <div style="margin-top:4px;">${r.text.replace(/\n/g, "<br>")}</div>
       `;
     }
 
+    function startEditFromRandom() {
+      if (!lastRandomRoutine) {
+        alert("まだランダム表示されていません。");
+        return;
+      }
+    
+      const r = lastRandomRoutine;
+      editingId = r.id;
+    
+      document.getElementById("text").value = r.text;
+    
+      document.getElementById("createBtn").disabled = true;
+      document.getElementById("updateBtn").disabled = false;
+      document.getElementById("cancelEditBtn").disabled = false;
+    
+      setStatus(`編集中 (ID: ${r.id}) [ランダムから]`);
+    }
+    
     async function createRoutine() {
       const text = document.getElementById("text").value.trim();
       if (!text) {
@@ -221,21 +243,32 @@
       setStatus("");
     });
     document.getElementById("randomBtn").addEventListener("click", showRandom);
-
+    
+    document
+      .getElementById("editRandomBtn")
+      .addEventListener("click", startEditFromRandom);
+    
+    document
+      .getElementById("reloadListBtn")
+      .addEventListener("click", () => {
+        loadList();
+        setStatus("一覧を再読み込みしました");
+      });
+    
     document.querySelector("#listTable tbody").addEventListener("click", (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
       const id = Number(btn.dataset.id);
       const action = btn.dataset.action;
       const tr = btn.closest("tr");
-
+    
       if (action === "edit") {
         startEditFromRow(tr);
       } else if (action === "delete") {
         deleteRoutine(id);
       }
     });
-
+    
     // 初期処理
     loadList();
   </script>
